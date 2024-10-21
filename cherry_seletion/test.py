@@ -81,83 +81,15 @@ def main():
     mean_rate_list = []
     mean_list_1 = []
     mean_list_2 = []
-    for i in tqdm(range(len(pt_data))):
+    for i in range(len(pt_data)):
         # 这一层按道理得有一层变量
         tmp_mean_rate_list = []
         tmp_mean_list_1 = []
         tmp_mean_list_2 = []
-        for j in range(len(pt_data[i])):
-            pt_data_i_j = pt_data[i][j]
-            loss_1_list = pt_data_i_j['token_loss'][1]
-            loss_2_list = pt_data_i_j['token_loss'][2]
-
-            info = json_data[i]['conversation'][j]
-
-            if info["role_type"] == "system":
-                system_content = info["content"]
-            elif info["role_type"] == "for_refer_BOT":
-                messages = [
-                    {"role":"system",
-                    "content": system_content + '\ncharacter greeting:\n' + info["content"]
-                    }
-                ]
-            elif info["role_type"] == "user":
-                messages.append(
-                    {"role":"user",
-                    "content": info["content"]
-                    }
-                )
-            elif info["role_type"] == "BOT":
-                messages.append(
-                    {"role":"assistant",
-                    "content": info["content"]
-                    }
-                )
-                
-                # Tokenize the input text
-                instruct_i_input_ids = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True, return_tensors="pt")
-
-                instruct_i_len = instruct_i_input_ids.shape[1]
-                
-                output_i = messages[-1]["content"]
-
-                if args.max_length-instruct_i_len > 0:
-
-                    len_1, token_ids_1, loss_list_1 = get_loss_part_text(tokenizer, messages, "direct_answer_text", output_i, args.max_length-instruct_i_len+3, loss_1_list)
-                    len_2, token_ids_2, loss_list_2 = get_loss_part_text(tokenizer, messages, "whole_text", output_i, args.max_length, loss_2_list)
-
-                    if len_1 <= 0 or len_2 <= 0:
-                        continue
-
-                    if instruct_i_len + len_1 > args.max_length:
-                        continue
-
-                    mean_1 = loss_list_1.mean()
-                    mean_2 = loss_list_2.mean()
-                    mean_rate = mean_2/mean_1
-                    if mean_rate > 1: 
-                        continue
-
-                    mean_rate_list.append((mean_rate,i))
-                    mean_list_1.append((mean_1,i))
-                    mean_list_2.append((mean_2,i))
-
-                else:
-                    continue
-
-    print('Do Rate')
-    mean_rate_list = sorted(mean_rate_list)
-    if args.sample_number == 0:
-        args.sample_number = int(len(mean_rate_list)*args.sample_rate)
-    mean_rate_list_id = [i for i in range(len(mean_rate_list))][-args.sample_number:]
-    mean_rate_list_id_sample = [mean_rate_list[id][1] for id in mean_rate_list_id]
-    mean_rate_list_id_sample = sorted(mean_rate_list_id_sample)
-
-    new_data = [json_data[idx] for idx in mean_rate_list_id_sample]
-    print('New data len \n',len(new_data))
-    with open(args.json_save_path, "w") as fw:
-        json.dump(new_data, fw, indent=4)
-
+        len_json = (len(json_data[i]['conversation'])-2)/2
+        len_pt = len(pt_data[i])
+        print(len_json, len_pt)
+        print("===")
 
 if __name__ == '__main__':
     main()

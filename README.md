@@ -79,10 +79,13 @@ Note: This `requirements.txt` is originated from the [Stanford Alpaca](https://g
 1. Select Pre-Experienced Data
 
 ```
+source /opt/venv/bin/activate
+export  PYTHONPATH=`pwd`
+
 python cherry_seletion/data_analysis.py \
     --data_path data/alpaca_data.json \
     --save_path alpaca_data_pre.pt \
-    --model_name_or_path <your_path_to_hf_converted_llama_ckpt_and_tokenizer> \
+    --model_name_or_path /mnt/data/models/Meta-Llama-3-8B \
     --max_length 512 \
     --prompt alpaca \
     --mod pre
@@ -92,7 +95,7 @@ python cherry_seletion/data_analysis.py \
 ```--save_path```: The path to save the ```.pt``` file containing embeddings or scores <br>
 ```--prompt```: The prompt type used for training and selecting data, can choose between ```alpaca``` or ```wiz``` <br>
 ```--mod```: ```pre``` used for getting needed embeddings or scores on selecting pre-experienced samples and ```cherry``` used for cherry <br>
-
+2. Kmeans Data
 ```
 python cherry_seletion/data_by_cluster.py \
     --pt_data_path alpaca_data_pre.pt \
@@ -113,26 +116,38 @@ python cherry_seletion/data_by_cluster.py \
 
 
 3. Train Pre-Experienced Model
+训练一个有基础指令功能的指令模型
 
 4. Select Cherry Data
 
 ```
 python cherry_seletion/data_analysis.py \
-    --data_path data/alpaca_data.json \
+    --data_path data/alpaca_data_test.json \
     --save_path alpaca_data_cherry.pt \
-    --model_name_or_path <your_path_pre_experienced_model> \
+    --model_name_or_path /mnt/data/models/Mistral-Nemo-Instruct-2407 \
     --max_length 512 \
     --prompt alpaca \
     --mod cherry
+
+nohup python cherry_seletion/data_analysis.py \
+    --data_path data/1019_mage_split_session_rd10sjz.json \
+    --save_path 1019_mage_split_session_rd10sjz_cherry.pt \
+    --model_name_or_path /mnt/workspace/yangchao.zhou/opt/models/Mistral-Nemo-Instruct-2407 \
+    --max_length 8192 \
+    --prompt linky \
+    --mod cherry > output.log 2>&1 &
+
+
 ```
 
 ```
 python cherry_seletion/data_by_IFD.py \
+    --model_name_or_path /mnt/data/models/Mistral-Nemo-Instruct-2407 \
     --pt_data_path alpaca_data_cherry.pt \
-    --json_data_path data/alpaca_data.json \
+    --json_data_path data/alpaca_data_test.json \
     --json_save_path alpaca_data_cherry.json \
     --max_length 512 \
-    --sample_rate 0.06 \
+    --sample_rate 0.80 \
     --prompt alpaca
 ```
 
