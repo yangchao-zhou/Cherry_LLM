@@ -166,3 +166,6 @@ workspace
 cherry_selection_direct_mod
 *.pt
 *.json
+check_model/models
+*.png
+ossconfig
