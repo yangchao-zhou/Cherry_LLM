@@ -14,7 +14,7 @@ all_num_equal = 0
 
 # Initialize the models
 model1_name = "/mnt/data/ran.xiao/cloud/prepare_for_online/llama3_as_en_12b_mistral_v2_1012"
-model2_name = "/mnt/workspace/yangchao.zhou/opt/Cherry_LLM/check_model/llama2_2050_rp_v2_minor_protect_1021"
+model2_name = "/mnt/workspace/yangchao.zhou/opt/Cherry_LLM/check_model/models/llama2_2050_rp_v2_minor_protect_1021"
 model1 = AutoModelForCausalLM.from_pretrained(model1_name, torch_dtype=torch.bfloat16).to(device)
 model2 = AutoModelForCausalLM.from_pretrained(model2_name, torch_dtype=torch.bfloat16).to(device)
 
@@ -58,15 +58,15 @@ def calculate_layer_diffs(model1, model2):
                 model1_layer.self_attn.o_proj.weight, model2_layer.self_attn.o_proj.weight
             ),
             'input_layernorm': calculate_weight_equal(model1_layer.input_layernorm.weight, model2_layer.input_layernorm.weight),
-            "mlp_down_proj": calculate_weight_equal(
-                model1_layer.mlp.down_proj.weight, model2_layer.mlp.down_proj.weight
-            ),
-            "mlp_gate_proj": calculate_weight_equal(
-                model1_layer.mlp.gate_proj.weight, model2_layer.mlp.gate_proj.weight
-            ),
-            "mlp_up_proj": calculate_weight_equal(
-                model1_layer.mlp.up_proj.weight, model2_layer.mlp.up_proj.weight
-            ),
+            # "mlp_down_proj": calculate_weight_equal(
+            #     model1_layer.mlp.down_proj.weight, model2_layer.mlp.down_proj.weight
+            # ),
+            # "mlp_gate_proj": calculate_weight_equal(
+            #     model1_layer.mlp.gate_proj.weight, model2_layer.mlp.gate_proj.weight
+            # ),
+            # "mlp_up_proj": calculate_weight_equal(
+            #     model1_layer.mlp.up_proj.weight, model2_layer.mlp.up_proj.weight
+            # ),
             'post_attention_layernorm': calculate_weight_equal(model1_layer.post_attention_layernorm.weight, model2_layer.post_attention_layernorm.weight),
         }
 
@@ -84,15 +84,15 @@ def calculate_layer_diffs(model1, model2):
                 model1_layer.self_attn.o_proj.weight, model2_layer.self_attn.o_proj.weight
             ),
             'input_layernorm': calculate_weight_diff(model1_layer.input_layernorm.weight, model2_layer.input_layernorm.weight),
-            "mlp_down_proj": calculate_weight_diff(
-                model1_layer.mlp.down_proj.weight, model2_layer.mlp.down_proj.weight
-            ),
-            "mlp_gate_proj": calculate_weight_diff(
-                model1_layer.mlp.gate_proj.weight, model2_layer.mlp.gate_proj.weight
-            ),
-            "mlp_up_proj": calculate_weight_diff(
-                model1_layer.mlp.up_proj.weight, model2_layer.mlp.up_proj.weight
-            ),
+            # "mlp_down_proj": calculate_weight_diff(
+            #     model1_layer.mlp.down_proj.weight, model2_layer.mlp.down_proj.weight
+            # ),
+            # "mlp_gate_proj": calculate_weight_diff(
+            #     model1_layer.mlp.gate_proj.weight, model2_layer.mlp.gate_proj.weight
+            # ),
+            # "mlp_up_proj": calculate_weight_diff(
+            #     model1_layer.mlp.up_proj.weight, model2_layer.mlp.up_proj.weight
+            # ),
             'post_attention_layernorm': calculate_weight_diff(model1_layer.post_attention_layernorm.weight, model2_layer.post_attention_layernorm.weight),
         }
 
@@ -136,13 +136,13 @@ def visualize_layer_same_persent(layer_equals, save_path="layer_equals_plot.png"
 
     for i, component in enumerate(layer_equals[0].keys()):
         # 获取每一层对应组件的差异
-        component_diffs = [[layer_diff[component] * 100 for layer_diff in layer_equals]]  # 乘以100转换为百分比
+        component_equals = [[layer_equal[component]*100] for layer_equal in layer_equals]  # 乘以100转换为百分比
 
-        sns.heatmap(component_diffs, annot=True, fmt=".2f", cmap="YlGnBu", ax=axs[i], 
+        sns.heatmap(component_equals, annot=True, fmt=".2f", cmap="YlGnBu", ax=axs[i], 
                     cbar_kws={"shrink": 0.8}, yticklabels=range(num_layers))  # 确保y轴标签与层数对应
         axs[i].set_title(component)
         axs[i].set_xlabel("Layer")
-        axs[i].set_ylabel("Difference (%)")  # 修改y轴标签为“Difference (%)”
+        axs[i].set_ylabel("Equal present(%)") 
         axs[i].set_xticks([])
 
     # 将y轴标签反转，确保从顶部到底部对应层数
