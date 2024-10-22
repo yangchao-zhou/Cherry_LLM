@@ -1,4 +1,5 @@
 import torch
+import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 from transformers import AutoModelForCausalLM
@@ -13,10 +14,12 @@ all_total_elements = 0
 all_num_equal = 0
 
 # Initialize the models
-model1_name = "/mnt/data/ran.xiao/cloud/prepare_for_online/llama3_as_en_12b_mistral_v2_1012"
-model2_name = "/mnt/workspace/yangchao.zhou/opt/Cherry_LLM/check_model/models/llama2_2050_rp_v2_minor_protect_1021"
+model1_name = "/mnt/data/ran.xiao/cloud/prepare_for_online/llama3_as_en_12b_mistral_v2_0925"
+# model1_name = "/mnt/data/ran.xiao/cloud/prepare_for_online/llama3_as_en_12b_mistral_v2_1012"
+# model2_name = "/mnt/workspace/yangchao.zhou/opt/Cherry_LLM/check_model/models/llama2_2050_linky_ziya_nemo_12b_1021"
+# model2_name = "/mnt/workspace/yangchao.zhou/opt/Cherry_LLM/check_model/models/llama3_as_nemo_en_sft_1021"
 model1 = AutoModelForCausalLM.from_pretrained(model1_name, torch_dtype=torch.bfloat16).to(device)
-model2 = AutoModelForCausalLM.from_pretrained(model2_name, torch_dtype=torch.bfloat16).to(device)
+# model2 = AutoModelForCausalLM.from_pretrained(model2_name, torch_dtype=torch.bfloat16).to(device)
 
 
 # Define weight difference function
@@ -58,15 +61,15 @@ def calculate_layer_diffs(model1, model2):
                 model1_layer.self_attn.o_proj.weight, model2_layer.self_attn.o_proj.weight
             ),
             'input_layernorm': calculate_weight_equal(model1_layer.input_layernorm.weight, model2_layer.input_layernorm.weight),
-            # "mlp_down_proj": calculate_weight_equal(
-            #     model1_layer.mlp.down_proj.weight, model2_layer.mlp.down_proj.weight
-            # ),
-            # "mlp_gate_proj": calculate_weight_equal(
-            #     model1_layer.mlp.gate_proj.weight, model2_layer.mlp.gate_proj.weight
-            # ),
-            # "mlp_up_proj": calculate_weight_equal(
-            #     model1_layer.mlp.up_proj.weight, model2_layer.mlp.up_proj.weight
-            # ),
+            "mlp_down_proj": calculate_weight_equal(
+                model1_layer.mlp.down_proj.weight, model2_layer.mlp.down_proj.weight
+            ),
+            "mlp_gate_proj": calculate_weight_equal(
+                model1_layer.mlp.gate_proj.weight, model2_layer.mlp.gate_proj.weight
+            ),
+            "mlp_up_proj": calculate_weight_equal(
+                model1_layer.mlp.up_proj.weight, model2_layer.mlp.up_proj.weight
+            ),
             'post_attention_layernorm': calculate_weight_equal(model1_layer.post_attention_layernorm.weight, model2_layer.post_attention_layernorm.weight),
         }
 
@@ -84,15 +87,15 @@ def calculate_layer_diffs(model1, model2):
                 model1_layer.self_attn.o_proj.weight, model2_layer.self_attn.o_proj.weight
             ),
             'input_layernorm': calculate_weight_diff(model1_layer.input_layernorm.weight, model2_layer.input_layernorm.weight),
-            # "mlp_down_proj": calculate_weight_diff(
-            #     model1_layer.mlp.down_proj.weight, model2_layer.mlp.down_proj.weight
-            # ),
-            # "mlp_gate_proj": calculate_weight_diff(
-            #     model1_layer.mlp.gate_proj.weight, model2_layer.mlp.gate_proj.weight
-            # ),
-            # "mlp_up_proj": calculate_weight_diff(
-            #     model1_layer.mlp.up_proj.weight, model2_layer.mlp.up_proj.weight
-            # ),
+            "mlp_down_proj": calculate_weight_diff(
+                model1_layer.mlp.down_proj.weight, model2_layer.mlp.down_proj.weight
+            ),
+            "mlp_gate_proj": calculate_weight_diff(
+                model1_layer.mlp.gate_proj.weight, model2_layer.mlp.gate_proj.weight
+            ),
+            "mlp_up_proj": calculate_weight_diff(
+                model1_layer.mlp.up_proj.weight, model2_layer.mlp.up_proj.weight
+            ),
             'post_attention_layernorm': calculate_weight_diff(model1_layer.post_attention_layernorm.weight, model2_layer.post_attention_layernorm.weight),
         }
 
@@ -105,16 +108,28 @@ def calculate_layer_diffs(model1, model2):
 
 
 # Visualize the layer differences and save the plot
-def visualize_layer_diffs(layer_diffs, save_path="layer_diffs_plot.png"):
+def visualize_layer_diffs(layer_diffs, model2_name, save_path="layer_diffs_plot.png"):
     num_layers = len(layer_diffs)
     num_components = len(layer_diffs[0])
 
     fig, axs = plt.subplots(1, num_components, figsize=(24, 8))
     fig.suptitle(f"{model1_name} <> {model2_name}", fontsize=16)
 
+    # 定义颜色映射和边界，从黄色到蓝色
+    # colors = ['#ffffe0', '#b2f5a9', '#87ceeb', '#1f77b4']  # 渐变颜色
+    colors = ['#ffffe0', '#87ceeb', '#1f77b4']  # 渐变颜色
+    # bounds = [0, 0.0001, 0.0003]  # 分成四档
+    bounds = [0, 0.0001, 0.00015, 0.0002]  # 切得更细的五档
+
+    # bounds = [0, 1e-5, 1e-4]  # 分成四档
+    cmap = ListedColormap(colors)
+    norm = BoundaryNorm(bounds, cmap.N)
+
     for i, component in enumerate(layer_diffs[0].keys()):
         component_diffs = [[layer_diff[component]] for layer_diff in layer_diffs]
-        sns.heatmap(component_diffs, annot=True, fmt=".5f", cmap="YlGnBu", ax=axs[i], cbar_kws={"shrink": 0.8})
+        
+        # 绘制热图，使用自定义颜色映射
+        sns.heatmap(component_diffs, annot=True, fmt=".8f", cmap=cmap, norm=norm, ax=axs[i], cbar_kws={"shrink": 0.8})
         axs[i].set_title(component)
         axs[i].set_xlabel("Layer")
         axs[i].set_ylabel("Difference")
@@ -127,7 +142,7 @@ def visualize_layer_diffs(layer_diffs, save_path="layer_diffs_plot.png"):
     plt.savefig(save_path)
     plt.close()
 
-def visualize_layer_same_persent(layer_equals, save_path="layer_equals_plot.png"):
+def visualize_layer_same_persent(layer_equals, model2_name, save_path="layer_equals_plot.png"):
     num_layers = len(layer_equals)
     num_components = len(layer_equals[0])
 
@@ -153,12 +168,23 @@ def visualize_layer_same_persent(layer_equals, save_path="layer_equals_plot.png"
     plt.close()
 
 
+def get_subfolder_paths(folder_path):
+    # 使用 os.listdir() 获取文件夹中的所有条目，os.path.isdir() 判断是否为文件夹
+    subfolders = [os.path.join(folder_path, entry) for entry in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, entry))]
+    return subfolders
 
-# Calculate and save the differences
-layer_diffs, layer_equals, same_parameters_ratio = calculate_layer_diffs(model1, model2)
-print(f"参数完全相同的比例: {same_parameters_ratio}")
+def check_model():
+    subfolder_paths = get_subfolder_paths("/mnt/workspace/yangchao.zhou/opt/Cherry_LLM/check_model/models")
+    for model2_name in subfolder_paths:
+        model2 = AutoModelForCausalLM.from_pretrained(model2_name, torch_dtype=torch.bfloat16).to(device)
+        # Calculate and save the differences
+        layer_diffs, layer_equals, same_parameters_ratio = calculate_layer_diffs(model1, model2)
+        print(f"参数完全相同的比例: {same_parameters_ratio}")
 
-visualize_layer_diffs(layer_diffs, save_path="/mnt/workspace/yangchao.zhou/opt/Cherry_LLM/check_model/layer_diffs_plot-init.png")
-visualize_layer_same_persent(layer_equals, save_path="/mnt/workspace/yangchao.zhou/opt/Cherry_LLM/check_model/layer_equals_plot-init-1.png")
+        visualize_layer_diffs(layer_diffs, model2_name, save_path="/mnt/workspace/yangchao.zhou/opt/Cherry_LLM/check_model/pic-0925-all/"+ model1_name.split("/")[-1] + "对比" + model2_name.split("/")[-1]+ ".png")
+        visualize_layer_same_persent(layer_equals, model2_name, save_path="/mnt/workspace/yangchao.zhou/opt/Cherry_LLM/check_model/pic-0925-all/equal/"+ model1_name.split("/")[-1] + "对比" + model2_name.split("/")[-1]+ ".png")
+        print(f"done: {model2_name}")
+    print("all done")
 
-print("all done")
+if __name__ == '__main__':
+    check_model()

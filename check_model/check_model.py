@@ -11,9 +11,9 @@ else:
 
 # Initialize the models
 # base_model_name = "/mnt/data/ran.xiao/cloud/prepare_for_online/llama3_as_en_12b_mistral_v3_1020"
-# base_model_name = "/mnt/data/ran.xiao/cloud/prepare_for_online/llama3_as_en_12b_mistral_v2_1012"
-base_model_name = "/mnt/data/models/Mistral-Nemo-Instruct-2407"
-chat_model_name = "/mnt/workspace/yangchao.zhou/opt/Cherry_LLM/check_model/llama2_2050_rp_v2_minor_protect_1021"
+base_model_name = "/mnt/data/ran.xiao/cloud/prepare_for_online/llama3_as_en_12b_mistral_v2_1012"
+# base_model_name = "/mnt/data/models/Mistral-Nemo-Instruct-2407"
+chat_model_name = "/mnt/workspace/yangchao.zhou/opt/Cherry_LLM/check_model/models/llama2_2050_rp_v2_minor_protect_1021"
 # chat_model_name = "/mnt/data/rufeng.dai/pyproject/linky/Nemo_test/run_sft_v3/mistral_chat_sft_all/results_lr1e6_minlr1e8_tp1_pp8_seq8192_1019/hf_models/Mistral_12b_sft_step_910"
 # chat_model_name = "/mnt/workspace/yangchao.zhou/opt/Cherry_LLM/check_model/llama3_as_nemo_en_sft_1018"
 base_model = AutoModelForCausalLM.from_pretrained(base_model_name, torch_dtype=torch.bfloat16).to(device)
