@@ -190,7 +190,6 @@ def get_perplexity_and_embedding_messages(tokenizer, model, messages, use_type, 
     # 返回困惑度、0 和各个 token 的损失
     return perplexity.to("cpu"), 0, losses
 
-
 def main():
 
     args = parse_args()
@@ -198,13 +197,8 @@ def main():
 
     model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path, device_map="auto", cache_dir='../cache', output_hidden_states=True)
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, cache_dir='../cache')
-    # tokenizer.apply_chat_template
-
-
     model.eval()
 
-    if args.save_path[-3:] != '.pt':
-        args.save_path += '.pt'
     if os.path.exists(args.save_path):
         print('save_path exists!')
         # raise Exception
@@ -216,115 +210,64 @@ def main():
     end_idx = args.end_idx if args.end_idx != -1 else len(data)
     sampled_data = data[start_idx:end_idx]
 
-    import time
-    strat_time = time.time()
     new_data = []
-    # 全部conversation的遍历
     for i in tqdm(range(len(sampled_data))):
 
         data_i = sampled_data[i]
-        if args.prompt == "linky":
-            pass
-        else:
-            instruct_i = data_i['instruction']
-            output_i = data_i['output']
-
-            direct_answer_text = '### Response:' + output_i
-            if args.prompt == 'wiz':
-                whole_text = instruct_i+'\n\n### Response:'+output_i
-                input_i = data_i['input'] if 'input' in data_i.keys() else ''
-                if input_i != '':
-                    whole_text = instruct_i+'\nInput:'+input_i+'\n\n### Response:'+output_i
-
-            elif args.prompt == 'alpaca':
-                input_i = data_i['input'] if 'input' in data_i.keys() else ''
-                if input_i == '':
-                    temp_dict = {'instruction':instruct_i}
-                    promt_to_use = PROMPT_DICT["prompt_no_input"].format_map(temp_dict)
-                    whole_text = promt_to_use + output_i
-                    instruct_i = promt_to_use
-                else:
-                    temp_dict = {'instruction':instruct_i,'input':input_i}
-                    promt_to_use = PROMPT_DICT["prompt_input"].format_map(temp_dict)
-                    whole_text = promt_to_use + output_i
-                    instruct_i = promt_to_use
+        conversation_temp_data_i = []
         
+        intro = data_i["intro"]
+        greeting = data_i['greeting']
+        npc_name = data_i['npc_name']
+        history = data_i['history']
+        npc_profile = data_i['npc_profile']
 
-        temp_data_i = {}
-        if args.mod == 'pre':
-            ppl_ins_alone, emb_ins_alone = get_perplexity_and_embedding_whole_text(tokenizer, model, instruct_i, args.max_length)
-            temp_data_i['ppl'] = [ppl_ins_alone,0,0]
-            temp_data_i['sent_emb'] = [emb_ins_alone,0,0]
+        systemp_prompt = system_prompt_template_struct.render({"npc_name": npc_name, "intro": intro, "npc_profile": npc_profile})
+  
+        messages = [
+            {"role": "system",
+            "content": systemp_prompt + '\ncharacter greeting:\n' + greeting}
+        ]
+        
+        for j, info in enumerate(history):
+            chat_temp_data_i = {}
+            
+            if info["role"] == "user":
+                messages.append(
+                    {"role": "user",
+                    "content": info["content"]}
+                )
+            elif info["role"] == "ai":
+                messages.append(
+                    {"role": "assistant",
+                    "content": info["content"]}
+                )
 
-        elif args.mod == 'cherry':
-            # linky对话数据的处理
-            if args.prompt == "linky":
-                conversation_temp_data_i = []
+                instruct_i_input_ids = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True, return_tensors="pt")
+                instruct_i_len = instruct_i_input_ids.shape[1]
                 
-                conversation = data_i["conversation"]
-                npc_profile
-                # npc_name，intro， npc_profile需要有
-                if npc_profile and system_prompt_template_struct:
-                    systemp_prompt = system_prompt_template_struct.render({"npc_name": npc_name, "intro": intro, "npc_profile": npc_profile})
+                output_i = messages[-1]["content"]
 
-                for i, info in enumerate(conversation):
-                    print(f"chat index: {i}, role_type:{info['role_type']}")
-                    chat_temp_data_i = {}
-                    if info["role_type"] == "system":
-                        system_content = info["content"]
-                    elif info["role_type"] == "for_refer_BOT":
-                        messages = [
-                            {"role":"system",
-                            "content": system_content + '\ncharacter greeting:\n' + info["content"]
-                            }
-                        ]
-                    elif info["role_type"] == "user":
-                        messages.append(
-                            {"role":"user",
-                            "content": info["content"]
-                            }
-                        )
-                    elif info["role_type"] == "BOT":
-                        messages.append(
-                            {"role":"assistant",
-                            "content": info["content"]
-                            }
-                        )
-                        instruct_i_input_ids = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True, return_tensors="pt")
+                ppl_out_alone, _, loss_list_alone = get_perplexity_and_embedding_messages(tokenizer, model, messages, "direct_answer_text", output_i, args.max_length-instruct_i_len+3)
+                ppl_out_condition, _, loss_list_condition = get_perplexity_and_embedding_messages(tokenizer, model, messages, "whole_text", output_i, args.max_length)
 
-                        instruct_i_len = instruct_i_input_ids.shape[1]
-                        
-                        output_i = messages[-1]["content"]
-                        # direct_answer_text = "NPC: " + output_i
-                        # whole_text = messages[:-2]["content"] + output_i
+                # 添加 ppl 和 token_loss 到 history 中
+                history[j]['ppl'] = [0, ppl_out_alone, ppl_out_condition]
+                history[j]['token_loss'] = [[], loss_list_alone, loss_list_condition]
 
-                        ppl_out_alone, _, loss_list_alone = get_perplexity_and_embedding_messages(tokenizer, model, messages, "direct_answer_text", output_i, args.max_length-instruct_i_len+3)
-                        ppl_out_condition, _, loss_list_condition = get_perplexity_and_embedding_messages(tokenizer, model, messages, "whole_text", output_i, args.max_length)
+                chat_temp_data_i['ppl'] = [0, ppl_out_alone, ppl_out_condition]
+                chat_temp_data_i['token_loss'] = [[], loss_list_alone, loss_list_condition]
 
-                        chat_temp_data_i['ppl'] = [0,ppl_out_alone,ppl_out_condition]
-                        chat_temp_data_i['token_loss'] = [[],loss_list_alone,loss_list_condition]
-                        conversation_temp_data_i.append(chat_temp_data_i)
-                        temp_data_i = conversation_temp_data_i
-                    else:
-                        raise Exception
-
+                conversation_temp_data_i.append(chat_temp_data_i)
             else:
-                instruct_i_input_ids = tokenizer.encode(instruct_i, return_tensors="pt", truncation=True, max_length=args.max_length).to(device)
-                instruct_i_len = instruct_i_input_ids.shape[1] 
+                raise Exception
 
-                ppl_out_alone, _, loss_list_alone = get_perplexity_and_embedding_part_text(tokenizer, model, direct_answer_text, output_i, args.max_length-instruct_i_len+3)
-                ppl_out_condition, _, loss_list_condition = get_perplexity_and_embedding_part_text(tokenizer, model, whole_text, output_i, args.max_length)
+        new_data.append(data_i)
 
-                temp_data_i['ppl'] = [0,ppl_out_alone,ppl_out_condition]
-                temp_data_i['token_loss'] = [[],loss_list_alone,loss_list_condition]
+    # 保存更新后的数据为新的 pt 文件
+    torch.save(new_data, args.save_path)
+    print('Data saved to PT:', args.save_path)
 
-        new_data.append(temp_data_i)
-        pass
-
-    print('New data len:', len(new_data))
-    torch.save(new_data,args.save_path)
-
-    print('Time Used:',(time.time()-strat_time)/60,'(min)')
 
 if __name__ == "__main__":
     main()

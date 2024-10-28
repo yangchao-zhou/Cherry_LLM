@@ -14,8 +14,12 @@ all_total_elements = 0
 all_num_equal = 0
 
 # Initialize the models
-model1_name = "/mnt/data/ran.xiao/cloud/prepare_for_online/llama3_as_en_12b_mistral_v2_0925"
-# model1_name = "/mnt/data/ran.xiao/cloud/prepare_for_online/llama3_as_en_12b_mistral_v2_1012"
+# model1_name = "/mnt/data/ran.xiao/cloud/prepare_for_online/llama3_as_en_12b_mistral_v2_0925"
+model1_name = "/mnt/data/ran.xiao/cloud/prepare_for_online/llama3_as_en_12b_mistral_v2_1012"
+# model1_name = "/mnt/data/ran.xiao/cloud/prepare_for_online/llama3_as_en_12b_mistral_v3_1021"
+# model1_name = "/mnt/data/ran.xiao/cloud/prepare_for_online/llama2_as_en_12b_mistral_v4_1021"
+
+
 # model2_name = "/mnt/workspace/yangchao.zhou/opt/Cherry_LLM/check_model/models/llama2_2050_linky_ziya_nemo_12b_1021"
 # model2_name = "/mnt/workspace/yangchao.zhou/opt/Cherry_LLM/check_model/models/llama3_as_nemo_en_sft_1021"
 model1 = AutoModelForCausalLM.from_pretrained(model1_name, torch_dtype=torch.bfloat16).to(device)
@@ -87,15 +91,15 @@ def calculate_layer_diffs(model1, model2):
                 model1_layer.self_attn.o_proj.weight, model2_layer.self_attn.o_proj.weight
             ),
             'input_layernorm': calculate_weight_diff(model1_layer.input_layernorm.weight, model2_layer.input_layernorm.weight),
-            "mlp_down_proj": calculate_weight_diff(
-                model1_layer.mlp.down_proj.weight, model2_layer.mlp.down_proj.weight
-            ),
-            "mlp_gate_proj": calculate_weight_diff(
-                model1_layer.mlp.gate_proj.weight, model2_layer.mlp.gate_proj.weight
-            ),
-            "mlp_up_proj": calculate_weight_diff(
-                model1_layer.mlp.up_proj.weight, model2_layer.mlp.up_proj.weight
-            ),
+            # "mlp_down_proj": calculate_weight_diff(
+            #     model1_layer.mlp.down_proj.weight, model2_layer.mlp.down_proj.weight
+            # ),
+            # "mlp_gate_proj": calculate_weight_diff(
+            #     model1_layer.mlp.gate_proj.weight, model2_layer.mlp.gate_proj.weight
+            # ),
+            # "mlp_up_proj": calculate_weight_diff(
+            #     model1_layer.mlp.up_proj.weight, model2_layer.mlp.up_proj.weight
+            # ),
             'post_attention_layernorm': calculate_weight_diff(model1_layer.post_attention_layernorm.weight, model2_layer.post_attention_layernorm.weight),
         }
 
@@ -103,6 +107,8 @@ def calculate_layer_diffs(model1, model2):
         layer_equals.append(layer_equal)
     
     same_parameters_ratio = all_num_equal / all_total_elements  # 计算相等权重比例
+    all_total_elements = 0
+    all_num_equal = 0
 
     return layer_diffs, layer_equals, same_parameters_ratio
 
@@ -174,15 +180,15 @@ def get_subfolder_paths(folder_path):
     return subfolders
 
 def check_model():
-    subfolder_paths = get_subfolder_paths("/mnt/workspace/yangchao.zhou/opt/Cherry_LLM/check_model/models")
+    subfolder_paths = get_subfolder_paths("/mnt/workspace/yangchao.zhou/opt/Cherry_LLM/check_model/models/")
     for model2_name in subfolder_paths:
         model2 = AutoModelForCausalLM.from_pretrained(model2_name, torch_dtype=torch.bfloat16).to(device)
         # Calculate and save the differences
         layer_diffs, layer_equals, same_parameters_ratio = calculate_layer_diffs(model1, model2)
         print(f"参数完全相同的比例: {same_parameters_ratio}")
 
-        visualize_layer_diffs(layer_diffs, model2_name, save_path="/mnt/workspace/yangchao.zhou/opt/Cherry_LLM/check_model/pic-0925-all/"+ model1_name.split("/")[-1] + "对比" + model2_name.split("/")[-1]+ ".png")
-        visualize_layer_same_persent(layer_equals, model2_name, save_path="/mnt/workspace/yangchao.zhou/opt/Cherry_LLM/check_model/pic-0925-all/equal/"+ model1_name.split("/")[-1] + "对比" + model2_name.split("/")[-1]+ ".png")
+        visualize_layer_diffs(layer_diffs, model2_name, save_path="/mnt/workspace/yangchao.zhou/opt/Cherry_LLM/check_model/"+"pic-"+model1_name.split("/")[-1]+"/"+ model1_name.split("/")[-1] + "对比" + model2_name.split("/")[-1]+ ".png")
+        visualize_layer_same_persent(layer_equals, model2_name, save_path="/mnt/workspace/yangchao.zhou/opt/Cherry_LLM/check_model/"+"pic-"+model1_name.split("/")[-1]+"/equal/"+ model1_name.split("/")[-1] + "对比" + model2_name.split("/")[-1]+ "_equal.png")
         print(f"done: {model2_name}")
     print("all done")
 
