@@ -139,7 +139,7 @@ nohup python cherry_seletion/data_analysis.py \
 
 
 ```
-
+5. Select Cherry Data by IFD
 ```
 python cherry_seletion/data_by_IFD.py \
     --model_name_or_path /mnt/data/models/Mistral-Nemo-Instruct-2407 \
